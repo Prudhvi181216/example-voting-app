@@ -1,86 +1,62 @@
-version: '3.0'
+version: "3"  # This indicates the compose spec version being used.
+
 services:
   vote:
     build: ./vote
+    # use python rather than gunicorn for local dev
     command: python app.py
-    depends_on:
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test:
-        - CMD
-        - curl
-        - -f
-        - http://localhost
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     volumes:
       - ./vote:/app
     ports:
-      - 5000:80
+      - "5000:80"
     networks:
       - front-tier
       - back-tier
+
   result:
     build: ./result
-    entrypoint: nodemon server.js
-    depends_on:
-      db:
-        condition: service_healthy
+    # use nodemon rather than node for local dev
+    command: nodemon server.js
     volumes:
       - ./result:/app
     ports:
-      - 5001:80
-      - 5858:5858
+      - "5001:80"
+      - "5858:5858"
     networks:
       - front-tier
       - back-tier
+
   worker:
     build:
       context: ./worker
     depends_on:
-      redis:
-        condition: service_healthy
-      db:
-        condition: service_healthy
+      - redis
+      - db
     networks:
       - back-tier
+
   redis:
     image: redis:alpine
-    volumes:
-      - ./healthchecks:/healthchecks
-    healthcheck:
-      test: /healthchecks/redis.sh
-      interval: 5s
+    container_name: redis
+    ports:
+      - "6379"
     networks:
       - back-tier
+
   db:
     image: postgres:15-alpine
+    container_name: db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
     volumes:
-      - db-data:/var/lib/postgresql/data
-      - ./healthchecks:/healthchecks
-    healthcheck:
-      test: /healthchecks/postgres.sh
-      interval: 5s
+      - "db-data:/var/lib/postgresql/data"
     networks:
       - back-tier
-  seed:
-    build: ./seed-data
-    profiles:
-      - seed
-    depends_on:
-      vote:
-        condition: service_healthy
-    networks:
-      - front-tier
-    restart: no
+
 volumes:
-  db-data: null
+  db-data:
+
 networks:
-  front-tier: null
-  back-tier: null
+  front-tier:
+  back-tier:
